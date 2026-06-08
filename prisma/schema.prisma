@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  ORGANIZER
+  STUDENT
+}
+
+model User {
+  id       String @id @default(cuid())
+  name     String
+  email    String @unique
+  password String
+  role     Role   @default(STUDENT)
+
+  events   Event[]
+  comments Comment[]
+  likes    Like[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Event {
+  id          String  @id @default(cuid())
+  title       String
+  description String?
+  coverImage  String?
+
+  creatorId String
+  creator   User   @relation(fields: [creatorId], references: [id])
+
+  media Media[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Media {
+  id           String  @id @default(cuid())
+  url          String
+  fileType     String
+  fileName     String?
+  originalName String?
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id])
+
+  comments  Comment[]
+  likes     Like[]
+  tags      Tag[]
+  createdAt DateTime  @default(now())
+}
+
+model Comment {
+  id      String @id @default(cuid())
+  content String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  mediaId String
+  media   Media  @relation(fields: [mediaId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Like {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  mediaId String
+  media   Media  @relation(fields: [mediaId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, mediaId])
+}
+
+model Tag {
+  id String @id @default(cuid())
+
+  name String
+
+  mediaId String
+  media   Media  @relation(fields: [mediaId], references: [id])
+
+  createdAt DateTime @default(now())
+}
