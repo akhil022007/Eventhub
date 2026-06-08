@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.gitignore
+.env
+.env*
+npm-debug.log*
+Dockerfile
+.dockerignore
+docker-compose.yml
+set-up.sh
+Makefile
+*.md
+.DS_Store
+coverage
+# user-uploaded media is provided at runtime via a volume, not baked in
+public/uploads/*
