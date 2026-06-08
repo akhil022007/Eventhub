@@ -1,6 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, canViewEvent } from "@/lib/auth";
+import {
+  json,
+  badRequest,
+  unauthorized,
+  forbidden,
+  notFound,
+  serverError,
+} from "@/lib/api";
 
 type Props = {
   params: Promise<{
@@ -8,30 +16,17 @@ type Props = {
   }>;
 };
 
-export async function POST(
-  req: NextRequest,
-  { params }: Props
-) {
+export async function POST(req: NextRequest, { params }: Props) {
   try {
     const { id } = await params;
 
     const user = await getCurrentUser();
+    if (!user) return unauthorized();
 
-    if (!user) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const { content } =
-      await req.json();
+    const { content } = await req.json();
 
     if (!content || !content.trim()) {
-      return NextResponse.json(
-        { message: "Comment cannot be empty" },
-        { status: 400 }
-      );
+      return badRequest("Comment cannot be empty");
     }
 
     const media = await prisma.media.findUnique({
@@ -40,46 +35,20 @@ export async function POST(
     });
 
     if (!media) {
-      return NextResponse.json(
-        { message: "Media not found" },
-        { status: 404 }
-      );
+      return notFound("Media not found");
     }
 
-    // Must be a member of the event (organizer or viewer) to comment.
+    // Must be a member of the event (organizer/uploader/viewer) to comment.
     if (!(await canViewEvent(user, media.eventId))) {
-      return NextResponse.json(
-        { message: "Forbidden" },
-        { status: 403 }
-      );
+      return forbidden();
     }
 
-    const comment =
-      await prisma.comment.create({
-        data: {
-          content,
-          userId: user.id,
-          mediaId: id,
-        },
-      });
+    const comment = await prisma.comment.create({
+      data: { content, userId: user.id, mediaId: id },
+    });
 
-    return NextResponse.json(
-      comment,
-      {
-        status: 201,
-      }
-    );
+    return json(comment, 201);
   } catch (error) {
-    console.error(error);
-
-    return NextResponse.json(
-      {
-        message:
-          "Failed to create comment",
-      },
-      {
-        status: 500,
-      }
-    );
+    return serverError("Failed to create comment", error);
   }
 }

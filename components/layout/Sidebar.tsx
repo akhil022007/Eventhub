@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { apiCall, handleApiError } from "@/lib/client";
+
 type User = {
   id: string;
   name: string;
@@ -19,14 +21,7 @@ export default function Sidebar() {
   useEffect(() => {
     async function loadUser() {
       try {
-        const res = await fetch(
-          "/api/me"
-        );
-
-        const data =
-          await res.json();
-
-        setUser(data);
+        setUser(await apiCall<User | null>("/api/me"));
       } catch (error) {
         console.error(error);
       }
@@ -37,19 +32,12 @@ export default function Sidebar() {
 
   async function handleLogout() {
     try {
-      await fetch(
-        "/api/logout",
-        {
-          method: "POST",
-        }
-      );
+      await apiCall("/api/logout", { method: "POST" });
 
       router.push("/login");
       router.refresh();
     } catch (error) {
-      console.error(error);
-
-      alert("Logout failed");
+      alert(handleApiError(error));
     }
   }
 

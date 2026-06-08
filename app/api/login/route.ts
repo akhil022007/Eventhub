@@ -1,100 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcrypt";
+import { signSession } from "@/lib/session";
+import { unauthorized, serverError } from "@/lib/api";
 
-export async function POST(
-  req: NextRequest
-) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const { email, password } = await req.json();
 
-    const {
-      email,
-      password,
-    } = body;
+    const user = await prisma.user.findUnique({ where: { email } });
 
-    const user =
-      await prisma.user.findUnique({
-        where: {
-          email,
-        },
-      });
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          message:
-            "Invalid credentials",
-        },
-        {
-          status: 401,
-        }
-      );
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return unauthorized("Invalid credentials");
     }
 
-    const isValid =
-      await bcrypt.compare(
-        password,
-        user.password
-      );
+    const response = NextResponse.json({
+      message: "Login successful",
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
 
-    if (!isValid) {
-      return NextResponse.json(
-        {
-          message:
-            "Invalid credentials",
-        },
-        {
-          status: 401,
-        }
-      );
-    }
+    // Store an HMAC-signed token, not the raw id, so the cookie can't be
+    // forged to impersonate another user. Role is always read from the DB.
+    const token = await signSession(user.id);
 
-    const response =
-      NextResponse.json({
-        message:
-          "Login successful",
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-      });
-
-    response.cookies.set(
-      "userId",
-      user.id,
-      {
-        httpOnly: true,
-        path: "/",
-        maxAge:
-          60 * 60 * 24 * 7,
-      }
-    );
-    response.cookies.set(
-  "role",
-  user.role,
-  {
-    httpOnly: true,
-    path: "/",
-    maxAge:
-      60 * 60 * 24 * 7,
-  }
-);
+    response.cookies.set("userId", token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
 
     return response;
   } catch (error) {
-    console.error(error);
-
-    return NextResponse.json(
-      {
-        message:
-          "Login failed",
-      },
-      {
-        status: 500,
-      }
-    );
+    return serverError("Login failed", error);
   }
 }

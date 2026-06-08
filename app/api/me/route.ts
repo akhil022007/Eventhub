@@ -1,30 +1,16 @@
-import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function GET() {
-  const userId =
-    (await cookies()).get(
-      "userId"
-    )?.value;
+  const user = await getCurrentUser();
 
-  if (!userId) {
-    return NextResponse.json(
-      null
-    );
+  if (!user) {
+    return NextResponse.json(null);
   }
 
-  const user =
-    await prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
-      select: {
-        id: true,
-        name: true,
-        role: true,
-      },
-    });
-
-  return NextResponse.json(user);
+  return NextResponse.json({
+    id: user.id,
+    name: user.name,
+    role: user.role,
+  });
 }

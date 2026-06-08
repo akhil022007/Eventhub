@@ -1,14 +1,19 @@
 import { cookies } from "next/headers";
+import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { verifySession } from "@/lib/session";
 
 /**
- * Reads the logged-in user from the httpOnly `userId` cookie.
- * Returns null when there is no cookie or the user no longer exists.
- * Works in both Server Components and Route Handlers.
+ * Reads the logged-in user from the signed `userId` cookie.
+ * The cookie value is HMAC-verified before use, so a forged or tampered
+ * cookie resolves to null. Returns null when there is no valid session or
+ * the user no longer exists. Works in both Server Components and Route Handlers.
  */
 export async function getCurrentUser() {
-  const userId = (await cookies()).get("userId")?.value;
+  const token = (await cookies()).get("userId")?.value;
+
+  const userId = await verifySession(token);
 
   if (!userId) {
     return null;
@@ -23,6 +28,25 @@ type MaybeUser = Awaited<ReturnType<typeof getCurrentUser>>;
 
 export function isAdmin(user: MaybeUser) {
   return user?.role === "ADMIN";
+}
+
+/**
+ * Prisma `where` filter for the events a user may see: admins see all,
+ * everyone else sees events they created or are a member of. A null user
+ * matches nothing. Shared by the events list, events API, and dashboard.
+ */
+export function accessibleEventsWhere(
+  user: MaybeUser
+): Prisma.EventWhereInput {
+  if (!user) return { id: { in: [] } };
+  if (isAdmin(user)) return {};
+
+  return {
+    OR: [
+      { creatorId: user.id },
+      { members: { some: { userId: user.id } } },
+    ],
+  };
 }
 
 /**

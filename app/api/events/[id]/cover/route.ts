@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, canManageEvent } from "@/lib/auth";
+import { json, unauthorized, forbidden, serverError } from "@/lib/api";
 
 type Props = {
   params: Promise<{
@@ -8,55 +9,23 @@ type Props = {
   }>;
 };
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: Props
-) {
+export async function PATCH(req: NextRequest, { params }: Props) {
   try {
     const { id } = await params;
 
     const user = await getCurrentUser();
+    if (!user) return unauthorized();
+    if (!(await canManageEvent(user, id))) return forbidden();
 
-    if (!user) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const { imageUrl } = await req.json();
 
-    if (!(await canManageEvent(user, id))) {
-      return NextResponse.json(
-        { message: "Forbidden" },
-        { status: 403 }
-      );
-    }
+    const event = await prisma.event.update({
+      where: { id },
+      data: { coverImage: imageUrl },
+    });
 
-    const body = await req.json();
-
-    const { imageUrl } = body;
-
-    const event =
-      await prisma.event.update({
-        where: {
-          id,
-        },
-        data: {
-          coverImage: imageUrl,
-        },
-      });
-
-    return NextResponse.json(event);
+    return json(event);
   } catch (error) {
-    console.error(error);
-
-    return NextResponse.json(
-      {
-        message:
-          "Failed to update cover image",
-      },
-      {
-        status: 500,
-      }
-    );
+    return serverError("Failed to update cover image", error);
   }
 }

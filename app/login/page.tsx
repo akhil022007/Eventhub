@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { apiCall, handleApiError } from "@/lib/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,29 +24,11 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      const res = await fetch(
-        "/api/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            password,
-          }),
-        }
-      );
-
-      const data =
-        await res.json();
-
-      if (!res.ok) {
-        throw new Error(
-          data.message
-        );
-      }
+      await apiCall("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
       const callbackUrl =
         new URLSearchParams(
@@ -58,13 +41,7 @@ export default function LoginPage() {
 
       router.refresh();
     } catch (error) {
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert(
-          "Login failed"
-        );
-      }
+      alert(handleApiError(error));
     } finally {
       setLoading(false);
     }

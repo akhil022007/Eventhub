@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { apiCall, handleApiError } from "@/lib/client";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -26,44 +27,17 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      const res = await fetch(
-        "/api/register",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            name,
-            email,
-            password,
-          }),
-        }
-      );
+      await apiCall("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
 
-      const data =
-        await res.json();
-
-      if (!res.ok) {
-        throw new Error(
-          data.message
-        );
-      }
-
-      alert(
-        "Registration successful"
-      );
+      alert("Registration successful");
 
       router.push("/login");
     } catch (error) {
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert(
-          "Registration failed"
-        );
-      }
+      alert(handleApiError(error));
     } finally {
       setLoading(false);
     }

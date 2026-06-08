@@ -1,16 +1,8 @@
 import EventCard from "./EventCard";
-
-type EventType = {
-  id: string;
-  title: string;
-  coverImage?: string | null;
-  _count?: {
-    media: number;
-  };
-};
+import type { EventPreview } from "@/lib/types";
 
 type Props = {
-  events: EventType[];
+  events: EventPreview[];
 };
 
 export default function EventGrid({

@@ -1,20 +1,22 @@
 import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
+import { verifySession } from "@/lib/session";
+
 // Next.js 16 renamed Middleware to Proxy. This runs before protected routes
-// and only does a lightweight auth gate — real authorization lives in the
-// route handlers and server components (see lib/auth.ts).
-export function proxy(
+// and does a lightweight auth gate — real authorization lives in the route
+// handlers and server components (see lib/auth.ts).
+export async function proxy(
   req: NextRequest
 ) {
-  const userId =
+  const token =
     req.cookies.get("userId")?.value;
 
-  const pathname =
-    req.nextUrl.pathname;
+  const userId = await verifySession(token);
 
-  // Not logged in? Send to login and remember where they were headed,
-  // so invite links (/events/[id]/join?token=...) survive the round-trip.
+  // No valid (signed) session? Send to login and remember where they were
+  // headed, so invite links (/events/[id]/join?token=...) survive the
+  // round-trip.
   if (!userId) {
     const callbackUrl =
       req.nextUrl.pathname + req.nextUrl.search;

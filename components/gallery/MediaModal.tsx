@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { Button } from "@/components/ui/button";
+import { apiCall, handleApiError } from "@/lib/client";
 
 type Props = {
   mediaId: string;
@@ -25,6 +26,10 @@ type Props = {
     id: string;
     content: string;
   }[];
+  tags?: {
+    id: string;
+    name: string;
+  }[];
   canManage?: boolean;
 };
 
@@ -36,6 +41,7 @@ export default function MediaModal({
   likesCount,
   likedByMe = false,
   comments,
+  tags = [],
   canManage = false,
 }: Props) {
   const router = useRouter();
@@ -45,95 +51,39 @@ export default function MediaModal({
     useState("");
 
   async function handleDelete() {
-    const confirmed = window.confirm(
-      "Delete this image?"
-    );
-
-    if (!confirmed) return;
+    if (!window.confirm("Delete this image?")) return;
 
     try {
-      const res = await fetch(
-        `/api/media/${mediaId}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(
-          "Delete failed"
-        );
-      }
-
+      await apiCall(`/api/media/${mediaId}`, { method: "DELETE" });
       router.refresh();
     } catch (error) {
-      console.error(error);
-
-      alert("Delete failed");
+      alert(handleApiError(error));
     }
   }
 
   async function handleSetCover() {
     try {
-      const eventId =
-        pathname.split("/").pop();
+      const eventId = pathname.split("/").pop();
 
-      const res = await fetch(
-        `/api/events/${eventId}/cover`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            imageUrl,
-          }),
-        }
-      );
+      await apiCall(`/api/events/${eventId}/cover`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl }),
+      });
 
-      if (!res.ok) {
-        throw new Error(
-          "Failed to set cover"
-        );
-      }
-
-      alert(
-        "Cover image updated"
-      );
-
+      alert("Cover image updated");
       router.refresh();
     } catch (error) {
-      console.error(error);
-
-      alert(
-        "Failed to set cover image"
-      );
+      alert(handleApiError(error));
     }
   }
 
   async function handleLike() {
     try {
-      const res = await fetch(
-        `/api/media/${mediaId}/like`,
-        {
-          method: "POST",
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(
-          "Like failed"
-        );
-      }
-
+      await apiCall(`/api/media/${mediaId}/like`, { method: "POST" });
       router.refresh();
     } catch (error) {
-      console.error(error);
-
-      alert(
-        "Failed to like image"
-      );
+      alert(handleApiError(error));
     }
   }
 
@@ -143,35 +93,16 @@ export default function MediaModal({
     }
 
     try {
-      const res = await fetch(
-        `/api/media/${mediaId}/comments`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            content: comment,
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(
-          "Comment failed"
-        );
-      }
+      await apiCall(`/api/media/${mediaId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: comment }),
+      });
 
       setComment("");
-
       router.refresh();
     } catch (error) {
-      console.error(error);
-
-      alert(
-        "Failed to add comment"
-      );
+      alert(handleApiError(error));
     }
   }
 
@@ -256,6 +187,19 @@ export default function MediaModal({
     "
   />
 )}
+
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <span
+                key={tag.id}
+                className="rounded-full bg-secondary px-3 py-1 text-xs"
+              >
+                #{tag.name}
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="space-y-3">
           <h3 className="font-semibold">

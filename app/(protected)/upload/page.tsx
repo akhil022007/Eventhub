@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { apiCall, handleApiError } from "@/lib/client";
 
 type Event = {
   id: string;
@@ -19,23 +20,51 @@ type Me = {
   role: string;
 };
 
+const DEFAULT_TAGS = [
+  "sports",
+  "music",
+  "food",
+  "people",
+  "nature",
+  "travel",
+  "tech",
+  "art",
+];
+
 export default function UploadPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [me, setMe] = useState<Me | null>(null);
   const [eventId, setEventId] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [customTag, setCustomTag] = useState("");
   const [uploading, setUploading] = useState(false);
+
+  function toggleTag(tag: string) {
+    setTags((prev) =>
+      prev.includes(tag)
+        ? prev.filter((t) => t !== tag)
+        : [...prev, tag]
+    );
+  }
+
+  function addCustomTag() {
+    const tag = customTag.trim().toLowerCase();
+
+    if (tag && !tags.includes(tag)) {
+      setTags((prev) => [...prev, tag]);
+    }
+
+    setCustomTag("");
+  }
 
   useEffect(() => {
     async function loadEvents() {
       try {
-        const [meRes, eventsRes] = await Promise.all([
-          fetch("/api/me"),
-          fetch("/api/events"),
+        const [meData, data] = await Promise.all([
+          apiCall<Me | null>("/api/me"),
+          apiCall<Event[]>("/api/events"),
         ]);
-
-        const meData: Me | null = await meRes.json();
-        const data: Event[] = await eventsRes.json();
 
         setMe(meData);
 
@@ -75,19 +104,15 @@ export default function UploadPage() {
         formData.append("file", file);
         formData.append("eventId", eventId);
 
-        const res = await fetch(
-          "/api/media",
-          {
-            method: "POST",
-            body: formData,
-          }
-        );
-
-        if (!res.ok) {
-          throw new Error(
-            `Failed to upload ${file.name}`
-          );
+        // Apply the chosen tags to every file in this batch.
+        for (const tag of tags) {
+          formData.append("tags", tag);
         }
+
+        await apiCall("/api/media", {
+          method: "POST",
+          body: formData,
+        });
       }
 
       alert(
@@ -96,9 +121,9 @@ export default function UploadPage() {
 
       setFiles([]);
       setEventId("");
+      setTags([]);
     } catch (error) {
-      console.error(error);
-      alert("Upload failed");
+      alert(handleApiError(error));
     } finally {
       setUploading(false);
     }
@@ -176,6 +201,74 @@ export default function UploadPage() {
             )
           }
         />
+
+        <div className="space-y-3">
+          <p className="text-sm font-medium">
+            Tags{" "}
+            <span className="text-muted-foreground font-normal">
+              (applied to all files in this upload)
+            </span>
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            {DEFAULT_TAGS.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => toggleTag(tag)}
+                className={`rounded-full border px-3 py-1 text-sm transition ${
+                  tags.includes(tag)
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background hover:border-zinc-500"
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <Input
+              placeholder="Add a custom tag"
+              value={customTag}
+              onChange={(e) => setCustomTag(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addCustomTag();
+                }
+              }}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={addCustomTag}
+            >
+              Add
+            </Button>
+          </div>
+
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-sm"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label={`Remove ${tag}`}
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
 
         {files.length > 0 && (
           <div

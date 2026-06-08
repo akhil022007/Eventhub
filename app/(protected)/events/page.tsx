@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { getCurrentUser, accessibleEventsWhere } from "@/lib/auth";
 
 import EventsClient from "@/components/events/EventsClient";
 
@@ -12,15 +12,7 @@ export default async function EventsPage() {
   // Admins see every event; everyone else sees events they created
   // or joined as a member.
   const events = await prisma.event.findMany({
-    where:
-      user && isAdmin(user)
-        ? undefined
-        : {
-            OR: [
-              { creatorId: user?.id },
-              { members: { some: { userId: user?.id } } },
-            ],
-          },
+    where: accessibleEventsWhere(user),
     include: {
       _count: { select: { media: true } },
     },

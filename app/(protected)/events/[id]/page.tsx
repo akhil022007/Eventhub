@@ -30,7 +30,9 @@ export default async function EventDetailsPage({
         include: {
           likes: true,
           comments: true,
+          tags: true,
         },
+        orderBy: { createdAt: "desc" },
       },
     },
   });

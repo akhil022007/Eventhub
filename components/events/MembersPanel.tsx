@@ -5,18 +5,12 @@ import { useRouter } from "next/navigation";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-type Member = {
-  userId: string;
-  name: string;
-  email: string;
-  role: "ORGANIZER" | "UPLOADER" | "VIEWER";
-  isCreator: boolean;
-};
+import { apiCall, handleApiError } from "@/lib/client";
+import type { EventMemberView } from "@/lib/types";
 
 type Props = {
   eventId: string;
-  members: Member[];
+  members: EventMemberView[];
 };
 
 export default function MembersPanel({ eventId, members }: Props) {
@@ -30,23 +24,15 @@ export default function MembersPanel({ eventId, members }: Props) {
     try {
       setBusyId(userId);
 
-      const res = await fetch(
-        `/api/events/${eventId}/members/${userId}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ role }),
-        }
-      );
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || "Failed to update member");
-      }
+      await apiCall(`/api/events/${eventId}/members/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+      });
 
       router.refresh();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to update member");
+      alert(handleApiError(error));
     } finally {
       setBusyId(null);
     }
@@ -58,19 +44,13 @@ export default function MembersPanel({ eventId, members }: Props) {
     try {
       setBusyId(userId);
 
-      const res = await fetch(
-        `/api/events/${eventId}/members/${userId}`,
-        { method: "DELETE" }
-      );
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || "Failed to remove member");
-      }
+      await apiCall(`/api/events/${eventId}/members/${userId}`, {
+        method: "DELETE",
+      });
 
       router.refresh();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to remove member");
+      alert(handleApiError(error));
     } finally {
       setBusyId(null);
     }

@@ -1,6 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, canManageEvent } from "@/lib/auth";
+import {
+  json,
+  badRequest,
+  unauthorized,
+  forbidden,
+  notFound,
+  serverError,
+} from "@/lib/api";
 
 type Props = {
   params: Promise<{
@@ -9,39 +17,21 @@ type Props = {
   }>;
 };
 
-// Change a member's role (promote to ORGANIZER / demote to VIEWER).
-export async function PATCH(
-  req: NextRequest,
-  { params }: Props
-) {
+// Change a member's role (promote to UPLOADER / demote to VIEWER).
+export async function PATCH(req: NextRequest, { params }: Props) {
   try {
     const { id, userId } = await params;
 
     const user = await getCurrentUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    if (!(await canManageEvent(user, id))) {
-      return NextResponse.json(
-        { message: "Forbidden" },
-        { status: 403 }
-      );
-    }
+    if (!user) return unauthorized();
+    if (!(await canManageEvent(user, id))) return forbidden();
 
     const { role } = await req.json();
 
-    // The organizer can only assign the UPLOADER or VIEWER roles; the
-    // ORGANIZER role belongs to the creator alone.
+    // The organizer can only assign UPLOADER or VIEWER; the ORGANIZER role
+    // belongs to the creator alone.
     if (role !== "UPLOADER" && role !== "VIEWER") {
-      return NextResponse.json(
-        { message: "Invalid role" },
-        { status: 400 }
-      );
+      return badRequest("Invalid role");
     }
 
     const event = await prisma.event.findUnique({
@@ -50,18 +40,11 @@ export async function PATCH(
     });
 
     if (!event) {
-      return NextResponse.json(
-        { message: "Event not found" },
-        { status: 404 }
-      );
+      return notFound("Event not found");
     }
 
-    // The creator's organizer status is permanent and can't be changed.
     if (event.creatorId === userId) {
-      return NextResponse.json(
-        { message: "The event creator's role cannot be changed" },
-        { status: 400 }
-      );
+      return badRequest("The event creator's role cannot be changed");
     }
 
     const membership = await prisma.eventMember.findUnique({
@@ -69,10 +52,7 @@ export async function PATCH(
     });
 
     if (!membership) {
-      return NextResponse.json(
-        { message: "Member not found" },
-        { status: 404 }
-      );
+      return notFound("Member not found");
     }
 
     const updated = await prisma.eventMember.update({
@@ -80,40 +60,20 @@ export async function PATCH(
       data: { role },
     });
 
-    return NextResponse.json(updated);
+    return json(updated);
   } catch (error) {
-    console.error(error);
-
-    return NextResponse.json(
-      { message: "Failed to update member" },
-      { status: 500 }
-    );
+    return serverError("Failed to update member", error);
   }
 }
 
 // Remove a member from the event.
-export async function DELETE(
-  req: NextRequest,
-  { params }: Props
-) {
+export async function DELETE(req: NextRequest, { params }: Props) {
   try {
     const { id, userId } = await params;
 
     const user = await getCurrentUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    if (!(await canManageEvent(user, id))) {
-      return NextResponse.json(
-        { message: "Forbidden" },
-        { status: 403 }
-      );
-    }
+    if (!user) return unauthorized();
+    if (!(await canManageEvent(user, id))) return forbidden();
 
     const event = await prisma.event.findUnique({
       where: { id },
@@ -121,18 +81,11 @@ export async function DELETE(
     });
 
     if (!event) {
-      return NextResponse.json(
-        { message: "Event not found" },
-        { status: 404 }
-      );
+      return notFound("Event not found");
     }
 
-    // The creator can't be removed from their own event.
     if (event.creatorId === userId) {
-      return NextResponse.json(
-        { message: "The event creator cannot be removed" },
-        { status: 400 }
-      );
+      return badRequest("The event creator cannot be removed");
     }
 
     const membership = await prisma.eventMember.findUnique({
@@ -140,23 +93,15 @@ export async function DELETE(
     });
 
     if (!membership) {
-      return NextResponse.json(
-        { message: "Member not found" },
-        { status: 404 }
-      );
+      return notFound("Member not found");
     }
 
     await prisma.eventMember.delete({
       where: { id: membership.id },
     });
 
-    return NextResponse.json({ message: "Member removed" });
+    return json({ message: "Member removed" });
   } catch (error) {
-    console.error(error);
-
-    return NextResponse.json(
-      { message: "Failed to remove member" },
-      { status: 500 }
-    );
+    return serverError("Failed to remove member", error);
   }
 }

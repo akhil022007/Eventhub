@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, canViewEvent } from "@/lib/auth";
+import { json, unauthorized, forbidden, notFound, serverError } from "@/lib/api";
 
 type Props = {
   params: Promise<{
@@ -8,21 +9,12 @@ type Props = {
   }>;
 };
 
-export async function POST(
-  req: NextRequest,
-  { params }: Props
-) {
+export async function POST(req: NextRequest, { params }: Props) {
   try {
     const { id } = await params;
 
     const user = await getCurrentUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    if (!user) return unauthorized();
 
     const media = await prisma.media.findUnique({
       where: { id },
@@ -30,62 +22,31 @@ export async function POST(
     });
 
     if (!media) {
-      return NextResponse.json(
-        { message: "Media not found" },
-        { status: 404 }
-      );
+      return notFound("Media not found");
     }
 
-    // Must be a member of the event (organizer or viewer) to like its media.
+    // Must be a member of the event (organizer/uploader/viewer) to like.
     if (!(await canViewEvent(user, media.eventId))) {
-      return NextResponse.json(
-        { message: "Forbidden" },
-        { status: 403 }
-      );
+      return forbidden();
     }
 
-    const existingLike =
-      await prisma.like.findUnique({
-        where: {
-          userId_mediaId: {
-            userId: user.id,
-            mediaId: id,
-          },
-        },
-      });
+    const existingLike = await prisma.like.findUnique({
+      where: {
+        userId_mediaId: { userId: user.id, mediaId: id },
+      },
+    });
 
     if (existingLike) {
-      await prisma.like.delete({
-        where: {
-          id: existingLike.id,
-        },
-      });
-
-      return NextResponse.json({
-        liked: false,
-      });
+      await prisma.like.delete({ where: { id: existingLike.id } });
+      return json({ liked: false });
     }
 
     await prisma.like.create({
-      data: {
-        userId: user.id,
-        mediaId: id,
-      },
+      data: { userId: user.id, mediaId: id },
     });
 
-    return NextResponse.json({
-      liked: true,
-    });
+    return json({ liked: true });
   } catch (error) {
-    console.error(error);
-
-    return NextResponse.json(
-      {
-        message: "Failed to like media",
-      },
-      {
-        status: 500,
-      }
-    );
+    return serverError("Failed to like media", error);
   }
 }

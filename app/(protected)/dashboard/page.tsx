@@ -1,21 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
-import { getCurrentUser, isAdmin } from "@/lib/auth";
-import type { Prisma } from "@prisma/client";
+import { getCurrentUser, accessibleEventsWhere } from "@/lib/auth";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
 
   // Scope dashboard stats to the events this user can access.
-  const eventWhere: Prisma.EventWhereInput =
-    user && isAdmin(user)
-      ? {}
-      : {
-          OR: [
-            { creatorId: user?.id },
-            { members: { some: { userId: user?.id } } },
-          ],
-        };
+  const eventWhere = accessibleEventsWhere(user);
 
   const eventCount =
     await prisma.event.count({ where: eventWhere });

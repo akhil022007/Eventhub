@@ -3,27 +3,10 @@
 import { useState } from "react";
 
 import MediaModal from "./MediaModal";
-
-type MediaType = {
-  id: string;
-  url: string;
-  fileType: string;
-  fileName: string | null;
-  originalName: string | null;
-
-  likes: {
-    id: string;
-    userId: string;
-  }[];
-
-  comments: {
-    id: string;
-    content: string;
-  }[];
-};
+import type { GalleryMedia } from "@/lib/types";
 
 type Props = {
-  media: MediaType[];
+  media: GalleryMedia[];
   canManage?: boolean;
   currentUserId?: string | null;
 };
@@ -36,6 +19,14 @@ export default function EventGallery({
   const [search, setSearch] =
     useState("");
 
+  const [activeTag, setActiveTag] =
+    useState<string | null>(null);
+
+  // All distinct tags across this event's media, for the filter bar.
+  const allTags = Array.from(
+    new Set(media.flatMap((m) => m.tags.map((t) => t.name)))
+  ).sort();
+
   const filteredMedia =
     media.filter((item) => {
       const name =
@@ -43,11 +34,17 @@ export default function EventGallery({
         item.fileName ||
         "";
 
-      return name
+      const matchesSearch = name
         .toLowerCase()
         .includes(
           search.toLowerCase()
         );
+
+      const matchesTag =
+        !activeTag ||
+        item.tags.some((t) => t.name === activeTag);
+
+      return matchesSearch && matchesTag;
     });
 
   return (
@@ -64,10 +61,41 @@ export default function EventGallery({
           p-3
           rounded-lg
           border
-          mb-8
+          mb-4
           bg-background
         "
       />
+
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-8">
+          <button
+            type="button"
+            onClick={() => setActiveTag(null)}
+            className={`rounded-full border px-3 py-1 text-sm transition ${
+              activeTag === null
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-background hover:border-zinc-500"
+            }`}
+          >
+            All
+          </button>
+
+          {allTags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => setActiveTag(tag)}
+              className={`rounded-full border px-3 py-1 text-sm transition ${
+                activeTag === tag
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background hover:border-zinc-500"
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div
         className="
@@ -104,6 +132,7 @@ export default function EventGallery({
             comments={
               media.comments
             }
+            tags={media.tags}
             canManage={canManage}
           />
         ))}

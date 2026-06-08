@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { apiCall, handleApiError } from "@/lib/client";
 
 export default function CreateEventPage() {
   const router = useRouter();
@@ -24,28 +25,16 @@ export default function CreateEventPage() {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/events", {
+      await apiCall("/api/events", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title,
-          description,
-          location,
-          date,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description, location, date }),
       });
-
-      if (!res.ok) {
-        throw new Error("Failed to create event");
-      }
 
       router.push("/events");
       router.refresh();
     } catch (error) {
-      console.error(error);
-      alert("Failed to create event");
+      alert(handleApiError(error));
     } finally {
       setLoading(false);
     }

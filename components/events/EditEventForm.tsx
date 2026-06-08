@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { apiCall, handleApiError } from "@/lib/client";
 
 type EventType = {
   id: string;
@@ -41,35 +42,16 @@ export default function EditEventForm({
     try {
       setLoading(true);
 
-      const res = await fetch(
-        `/api/events/${event.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            title,
-            description,
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(
-          "Update failed"
-        );
-      }
+      await apiCall(`/api/events/${event.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description }),
+      });
 
       router.push("/events");
       router.refresh();
     } catch (error) {
-      console.error(error);
-
-      alert(
-        "Failed to update event"
-      );
+      alert(handleApiError(error));
     } finally {
       setLoading(false);
     }

@@ -1,31 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { getCurrentUser, accessibleEventsWhere } from "@/lib/auth";
+import { json, badRequest, unauthorized, serverError } from "@/lib/api";
 
 export async function GET() {
   try {
     const user = await getCurrentUser();
 
     if (!user) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      );
+      return unauthorized();
     }
 
-    // Admins see every event; everyone else sees events they created
-    // or have been added to as a member (viewer/organizer).
     const events = await prisma.event.findMany({
-      where: isAdmin(user)
-        ? undefined
-        : {
-            OR: [
-              { creatorId: user.id },
-              { members: { some: { userId: user.id } } },
-            ],
-          },
+      where: accessibleEventsWhere(user),
       // Include the caller's own membership so the client can tell whether
-      // they organize the event (and may upload to it).
+      // they organize/upload to the event.
       include: {
         members: {
           where: { userId: user.id },
@@ -37,46 +26,24 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(events);
+    return json(events);
   } catch (error) {
-    console.error(error);
-
-    return NextResponse.json(
-      {
-        message: "Failed to fetch events",
-      },
-      {
-        status: 500,
-      }
-    );
+    return serverError("Failed to fetch events", error);
   }
 }
 
-export async function POST(
-  req: NextRequest
-) {
+export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
 
     if (!user) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      );
+      return unauthorized();
     }
 
-    const body = await req.json();
-
-    const {
-      title,
-      description,
-    } = body;
+    const { title, description } = await req.json();
 
     if (!title) {
-      return NextResponse.json(
-        { message: "Title is required" },
-        { status: 400 }
-      );
+      return badRequest("Title is required");
     }
 
     // The creator owns the event and is its organizer.
@@ -94,25 +61,8 @@ export async function POST(
       },
     });
 
-    return NextResponse.json(
-      event,
-      {
-        status: 201,
-      }
-    );
+    return json(event, 201);
   } catch (error) {
-    console.error(error);
-
-    return NextResponse.json(
-      {
-         error:
-        error instanceof Error
-          ? error.message
-          : String(error),
-      },
-      {
-        status: 500,
-      }
-    );
+    return serverError("Failed to create event", error);
   }
 }

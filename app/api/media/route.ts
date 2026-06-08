@@ -1,162 +1,94 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, canUploadToEvent } from "@/lib/auth";
+import { json, badRequest, unauthorized, forbidden, serverError } from "@/lib/api";
 
 import fs from "fs/promises";
 import path from "path";
 
-import { v4 as uuid } from "uuid";
+import { generateTags } from "@/services/auto-tags";
 
-import { generateTags } from "@/services/ai-tags";
+const ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+];
 
-export async function POST(
-  req: NextRequest
-) {
+export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
 
     if (!user) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      );
+      return unauthorized();
     }
 
-    const formData =
-      await req.formData();
+    const formData = await req.formData();
 
-    const file = formData.get(
-      "file"
-    ) as File | null;
-
-    const eventId = formData.get(
-      "eventId"
-    ) as string | null;
+    const file = formData.get("file") as File | null;
+    const eventId = formData.get("eventId") as string | null;
 
     if (!file || !eventId) {
-      return NextResponse.json(
-        {
-          message:
-            "File and eventId are required",
-        },
-        {
-          status: 400,
-        }
-      );
+      return badRequest("File and eventId are required");
     }
 
     // Organizers and members promoted to UPLOADER may upload media.
     if (!(await canUploadToEvent(user, eventId))) {
-      return NextResponse.json(
-        { message: "Forbidden" },
-        { status: 403 }
-      );
+      return forbidden();
     }
 
-    const allowedTypes = [
-      "image/jpeg",
-      "image/jpg",
-      "image/png",
-      "video/mp4",
-      "video/webm",
-      "video/quicktime",
-    ];
-
-    if (
-      !allowedTypes.includes(
-        file.type
-      )
-    ) {
-      return NextResponse.json(
-        {
-          message:
-            "Unsupported file type",
-        },
-        {
-          status: 400,
-        }
-      );
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return badRequest("Unsupported file type");
     }
 
-    const bytes =
-      await file.arrayBuffer();
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const extension = file.name.split(".").pop();
+    const fileName = `${crypto.randomUUID()}.${extension}`;
 
-    const buffer =
-      Buffer.from(bytes);
+    const uploadPath = path.join(process.cwd(), "public", "uploads", fileName);
+    await fs.writeFile(uploadPath, buffer);
 
-    const extension =
-      file.name.split(".").pop();
+    const media = await prisma.media.create({
+      data: {
+        fileName,
+        originalName: file.name,
+        url: `/uploads/${fileName}`,
+        fileType: file.type,
+        eventId,
+      },
+    });
 
-    const fileName = `${uuid()}.${extension}`;
+    // Tags the user chose/typed during upload, normalized.
+    const userTags = formData
+      .getAll("tags")
+      .map((t) => String(t).trim().toLowerCase())
+      .filter(Boolean);
 
-    const uploadPath = path.join(
-      process.cwd(),
-      "public",
-      "uploads",
-      fileName
-    );
+    // Plus tags auto-derived from the filename.
+    const autoTags = await generateTags(file.name);
 
-    await fs.writeFile(
-      uploadPath,
-      buffer
-    );
-
-    const media =
-      await prisma.media.create({
-        data: {
-          fileName,
-          originalName:
-            file.name,
-          url: `/uploads/${fileName}`,
-          fileType:
-            file.type,
-          eventId,
-        },
-      });
-
-    const tags =
-      await generateTags(
-        file.name
-      );
+    // Union, deduped, with light limits to avoid abuse.
+    const tags = Array.from(
+      new Set([...userTags, ...autoTags.map((t) => t.toLowerCase())])
+    )
+      .filter((t) => t.length <= 30)
+      .slice(0, 20);
 
     if (tags.length > 0) {
       await prisma.tag.createMany({
-        data: tags.map(
-          (tag) => ({
-            name: tag,
-            mediaId: media.id,
-          })
-        ),
+        data: tags.map((tag) => ({ name: tag, mediaId: media.id })),
       });
     }
 
-    const mediaWithTags =
-      await prisma.media.findUnique({
-        where: {
-          id: media.id,
-        },
-        include: {
-          tags: true,
-        },
-      });
+    const mediaWithTags = await prisma.media.findUnique({
+      where: { id: media.id },
+      include: { tags: true },
+    });
 
-    return NextResponse.json(
-      mediaWithTags,
-      {
-        status: 201,
-      }
-    );
+    return json(mediaWithTags, 201);
   } catch (error) {
-    console.error(error);
-
-    return NextResponse.json(
-      {
-        message:
-          "Failed to upload media",
-      },
-      {
-        status: 500,
-      }
-    );
+    return serverError("Failed to upload media", error);
   }
 }
