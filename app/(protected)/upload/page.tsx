@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,10 +9,19 @@ import { Button } from "@/components/ui/button";
 type Event = {
   id: string;
   title: string;
+  creatorId: string;
+  members: { role: "ORGANIZER" | "UPLOADER" | "VIEWER" }[];
+};
+
+type Me = {
+  id: string;
+  name: string;
+  role: string;
 };
 
 export default function UploadPage() {
   const [events, setEvents] = useState<Event[]>([]);
+  const [me, setMe] = useState<Me | null>(null);
   const [eventId, setEventId] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -19,10 +29,29 @@ export default function UploadPage() {
   useEffect(() => {
     async function loadEvents() {
       try {
-        const res = await fetch("/api/events");
-        const data = await res.json();
+        const [meRes, eventsRes] = await Promise.all([
+          fetch("/api/me"),
+          fetch("/api/events"),
+        ]);
 
-        setEvents(data);
+        const meData: Me | null = await meRes.json();
+        const data: Event[] = await eventsRes.json();
+
+        setMe(meData);
+
+        // You can upload to events you organize (creator) or where the
+        // organizer promoted you to UPLOADER. Admins can upload anywhere.
+        const uploadable =
+          meData?.role === "ADMIN"
+            ? data
+            : data.filter(
+                (event) =>
+                  event.creatorId === meData?.id ||
+                  event.members?.[0]?.role === "ORGANIZER" ||
+                  event.members?.[0]?.role === "UPLOADER"
+              );
+
+        setEvents(uploadable);
       } catch (error) {
         console.error(error);
       }
@@ -77,10 +106,29 @@ export default function UploadPage() {
 
   return (
     <main className="max-w-5xl mx-auto px-6 py-8">
-      <h1 className="text-4xl font-bold mb-8">
+      <h1 className="text-4xl font-bold mb-2">
         Upload Media
       </h1>
 
+      {me && (
+        <p className="text-sm text-muted-foreground mb-8">
+          Uploading as <span className="font-medium">{me.name}</span>. You can
+          upload to events you organize or were added to as an uploader.
+        </p>
+      )}
+
+      {events.length === 0 ? (
+        <div className="rounded-lg border p-6 text-center space-y-3">
+          <p className="text-muted-foreground">
+            You don&apos;t have upload access to any events yet. Create an event
+            (you become its organizer) or ask an organizer to add you as an
+            uploader.
+          </p>
+          <Link href="/events/create">
+            <Button>Create an Event</Button>
+          </Link>
+        </div>
+      ) : (
       <div className="space-y-6">
         <select
           value={eventId}
@@ -200,6 +248,7 @@ export default function UploadPage() {
               } File(s)`}
         </Button>
       </div>
+      )}
     </main>
   );
 }

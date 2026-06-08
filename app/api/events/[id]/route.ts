@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, canManageEvent } from "@/lib/auth";
 
 import fs from "fs/promises";
 import path from "path";
@@ -16,6 +17,22 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    if (!(await canManageEvent(user, id))) {
+      return NextResponse.json(
+        { message: "Forbidden" },
+        { status: 403 }
+      );
+    }
 
     const event = await prisma.event.findUnique({
       where: { id },
@@ -41,10 +58,27 @@ export async function DELETE(
       } catch {}
     }
 
+    // Remove dependent rows before the event itself to satisfy FKs.
+    await prisma.comment.deleteMany({
+      where: { media: { eventId: id } },
+    });
+
+    await prisma.like.deleteMany({
+      where: { media: { eventId: id } },
+    });
+
+    await prisma.tag.deleteMany({
+      where: { media: { eventId: id } },
+    });
+
     await prisma.media.deleteMany({
       where: {
         eventId: id,
       },
+    });
+
+    await prisma.eventMember.deleteMany({
+      where: { eventId: id },
     });
 
     await prisma.event.delete({
@@ -76,6 +110,22 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    if (!(await canManageEvent(user, id))) {
+      return NextResponse.json(
+        { message: "Forbidden" },
+        { status: 403 }
+      );
+    }
 
     const body = await req.json();
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, canManageEvent } from "@/lib/auth";
 
 import fs from "fs/promises";
 import path from "path";
@@ -16,6 +17,15 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
     const media =
       await prisma.media.findUnique({
@@ -35,6 +45,14 @@ export async function DELETE(
       );
     }
 
+    // Only the organizer of the media's event (or an admin) may delete it.
+    if (!(await canManageEvent(user, media.eventId))) {
+      return NextResponse.json(
+        { message: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     const filePath = path.join(
       process.cwd(),
       "public",
@@ -48,6 +66,11 @@ export async function DELETE(
         "File already missing"
       );
     }
+
+    // Clear dependent rows first to satisfy foreign keys.
+    await prisma.comment.deleteMany({ where: { mediaId: id } });
+    await prisma.like.deleteMany({ where: { mediaId: id } });
+    await prisma.tag.deleteMany({ where: { mediaId: id } });
 
     await prisma.media.delete({
       where: {

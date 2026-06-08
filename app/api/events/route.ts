@@ -1,9 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, isAdmin } from "@/lib/auth";
 
 export async function GET() {
   try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // Admins see every event; everyone else sees events they created
+    // or have been added to as a member (viewer/organizer).
     const events = await prisma.event.findMany({
+      where: isAdmin(user)
+        ? undefined
+        : {
+            OR: [
+              { creatorId: user.id },
+              { members: { some: { userId: user.id } } },
+            ],
+          },
+      // Include the caller's own membership so the client can tell whether
+      // they organize the event (and may upload to it).
+      include: {
+        members: {
+          where: { userId: user.id },
+          select: { role: true },
+        },
+      },
       orderBy: {
         createdAt: "desc",
       },
@@ -28,6 +56,15 @@ export async function POST(
   req: NextRequest
 ) {
   try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
 
     const {
@@ -35,28 +72,27 @@ export async function POST(
       description,
     } = body;
 
-    const user =
-      await prisma.user.findFirst();
-
-    if (!user) {
+    if (!title) {
       return NextResponse.json(
-        {
-          message: "No user found",
-        },
-        {
-          status: 400,
-        }
+        { message: "Title is required" },
+        { status: 400 }
       );
     }
 
-    const event =
-      await prisma.event.create({
-        data: {
-          title,
-          description,
-          creatorId: user.id,
+    // The creator owns the event and is its organizer.
+    const event = await prisma.event.create({
+      data: {
+        title,
+        description,
+        creatorId: user.id,
+        members: {
+          create: {
+            userId: user.id,
+            role: "ORGANIZER",
+          },
         },
-      });
+      },
+    });
 
     return NextResponse.json(
       event,

@@ -8,6 +8,9 @@ type EventType = {
   id: string;
   title: string;
   coverImage?: string | null;
+  _count?: {
+    media: number;
+  };
 };
 
 type Props = {

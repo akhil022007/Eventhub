@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, canUploadToEvent } from "@/lib/auth";
 
 import fs from "fs/promises";
 import path from "path";
@@ -12,6 +13,15 @@ export async function POST(
   req: NextRequest
 ) {
   try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const formData =
       await req.formData();
 
@@ -23,6 +33,26 @@ export async function POST(
       "eventId"
     ) as string | null;
 
+    if (!file || !eventId) {
+      return NextResponse.json(
+        {
+          message:
+            "File and eventId are required",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    // Organizers and members promoted to UPLOADER may upload media.
+    if (!(await canUploadToEvent(user, eventId))) {
+      return NextResponse.json(
+        { message: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     const allowedTypes = [
       "image/jpeg",
       "image/jpg",
@@ -33,7 +63,6 @@ export async function POST(
     ];
 
     if (
-      file &&
       !allowedTypes.includes(
         file.type
       )
@@ -42,18 +71,6 @@ export async function POST(
         {
           message:
             "Unsupported file type",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    if (!file || !eventId) {
-      return NextResponse.json(
-        {
-          message:
-            "File and eventId are required",
         },
         {
           status: 400,

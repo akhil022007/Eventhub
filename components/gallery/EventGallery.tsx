@@ -13,6 +13,7 @@ type MediaType = {
 
   likes: {
     id: string;
+    userId: string;
   }[];
 
   comments: {
@@ -23,10 +24,14 @@ type MediaType = {
 
 type Props = {
   media: MediaType[];
+  canManage?: boolean;
+  currentUserId?: string | null;
 };
 
 export default function EventGallery({
   media,
+  canManage = false,
+  currentUserId,
 }: Props) {
   const [search, setSearch] =
     useState("");
@@ -89,9 +94,17 @@ export default function EventGallery({
             likesCount={
               media.likes.length
             }
+            likedByMe={
+              currentUserId
+                ? media.likes.some(
+                    (like) => like.userId === currentUserId
+                  )
+                : false
+            }
             comments={
               media.comments
             }
+            canManage={canManage}
           />
         ))}
       </div>

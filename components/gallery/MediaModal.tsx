@@ -20,10 +20,12 @@ type Props = {
   imageName: string;
   fileType: string;
   likesCount: number;
+  likedByMe?: boolean;
   comments: {
     id: string;
     content: string;
   }[];
+  canManage?: boolean;
 };
 
 export default function MediaModal({
@@ -32,7 +34,9 @@ export default function MediaModal({
   imageName,
   fileType,
   likesCount,
+  likedByMe = false,
   comments,
+  canManage = false,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -307,16 +311,10 @@ export default function MediaModal({
 
         <div className="flex gap-3 flex-wrap">
           <Button
-            variant="secondary"
+            variant={likedByMe ? "default" : "secondary"}
             onClick={handleLike}
           >
-            ❤️ Like
-          </Button>
-
-          <Button
-            onClick={handleSetCover}
-          >
-            Set As Cover
+            {likedByMe ? "❤️ Liked" : "🤍 Like"}
           </Button>
 
           <a
@@ -332,12 +330,22 @@ export default function MediaModal({
             </Button>
           </a>
 
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-          >
-            Delete Image
-          </Button>
+          {canManage && (
+            <>
+              <Button
+                onClick={handleSetCover}
+              >
+                Set As Cover
+              </Button>
+
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+              >
+                Delete Image
+              </Button>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

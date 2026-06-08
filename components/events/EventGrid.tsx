@@ -4,6 +4,9 @@ type EventType = {
   id: string;
   title: string;
   coverImage?: string | null;
+  _count?: {
+    media: number;
+  };
 };
 
 type Props = {
@@ -21,6 +24,7 @@ export default function EventGrid({
           id={event.id}
           title={event.title}
           coverImage={event.coverImage}
+          photos={event._count?.media ?? 0}
         />
       ))}
     </div>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, canViewEvent } from "@/lib/auth";
 
 type Props = {
   params: Promise<{
@@ -14,20 +15,42 @@ export async function POST(
   try {
     const { id } = await params;
 
-    const { content } =
-      await req.json();
-
-    const user =
-      await prisma.user.findFirst();
+    const user = await getCurrentUser();
 
     if (!user) {
       return NextResponse.json(
-        {
-          message: "User not found",
-        },
-        {
-          status: 400,
-        }
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const { content } =
+      await req.json();
+
+    if (!content || !content.trim()) {
+      return NextResponse.json(
+        { message: "Comment cannot be empty" },
+        { status: 400 }
+      );
+    }
+
+    const media = await prisma.media.findUnique({
+      where: { id },
+      select: { eventId: true },
+    });
+
+    if (!media) {
+      return NextResponse.json(
+        { message: "Media not found" },
+        { status: 404 }
+      );
+    }
+
+    // Must be a member of the event (organizer or viewer) to comment.
+    if (!(await canViewEvent(user, media.eventId))) {
+      return NextResponse.json(
+        { message: "Forbidden" },
+        { status: 403 }
       );
     }
 

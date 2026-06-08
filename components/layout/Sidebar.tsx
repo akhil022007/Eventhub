@@ -86,26 +86,19 @@ export default function Sidebar() {
           Events
         </Link>
 
-        {(user?.role ===
-          "ADMIN" ||
-          user?.role ===
-            "ORGANIZER") && (
-          <>
-            <Link
-              href="/events/create"
-              className="block hover:text-primary"
-            >
-              Create Event
-            </Link>
+        <Link
+          href="/events/create"
+          className="block hover:text-primary"
+        >
+          Create Event
+        </Link>
 
-            <Link
-              href="/upload"
-              className="block hover:text-primary"
-            >
-              Upload Media
-            </Link>
-          </>
-        )}
+        <Link
+          href="/upload"
+          className="block hover:text-primary"
+        >
+          Upload Media
+        </Link>
 
         <button
           onClick={handleLogout}

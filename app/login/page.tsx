@@ -47,12 +47,13 @@ export default function LoginPage() {
         );
       }
 
-      alert(
-        "Login successful"
-      );
+      const callbackUrl =
+        new URLSearchParams(
+          window.location.search
+        ).get("callbackUrl");
 
       router.push(
-        "/dashboard"
+        callbackUrl || "/dashboard"
       );
 
       router.refresh();

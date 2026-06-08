@@ -9,8 +9,13 @@ datasource db {
 
 enum Role {
   ADMIN
+  USER
+}
+
+enum EventRole {
   ORGANIZER
-  STUDENT
+  UPLOADER
+  VIEWER
 }
 
 model User {
@@ -18,11 +23,12 @@ model User {
   name     String
   email    String @unique
   password String
-  role     Role   @default(STUDENT)
+  role     Role   @default(USER)
 
-  events   Event[]
-  comments Comment[]
-  likes    Like[]
+  events      Event[]
+  memberships EventMember[]
+  comments    Comment[]
+  likes       Like[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -33,14 +39,31 @@ model Event {
   title       String
   description String?
   coverImage  String?
+  inviteToken String  @unique @default(cuid())
 
   creatorId String
   creator   User   @relation(fields: [creatorId], references: [id])
 
-  media Media[]
+  media   Media[]
+  members EventMember[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model EventMember {
+  id   String    @id @default(cuid())
+  role EventRole @default(VIEWER)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, eventId])
 }
 
 model Media {
