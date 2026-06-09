@@ -103,3 +103,9 @@ Full endpoint reference, auth details, and copy-paste curl / Postman examples ar
 - Build the image → push to a registry (**ECR**) → run on **App Runner / ECS Fargate / EC2**. You **cannot** run a container from S3.
 - Use **RDS for PostgreSQL** for the database and inject `DATABASE_URL` / `SESSION_SECRET` from **Secrets Manager / SSM**.
 - Uploaded media is written to local disk (`public/uploads`), which is **ephemeral** on Fargate/App Runner. For production, store uploads in **S3** (a change in `app/api/media/route.ts`).
+
+## Live demo
+
+Deployed on Render: **https://eventhub-6qxs.onrender.com/**
+
+It runs on Render's free tier, so it may be **down or slow on the first request** (the service sleeps when idle and takes ~30–60s to wake up) — just retry after a moment.
