@@ -30,7 +30,13 @@ export async function DELETE(req: NextRequest, { params }: Props) {
     }
 
     for (const media of event.media) {
-      const filePath = path.join(process.cwd(), "public", media.url);
+      if (!media.fileName) continue;
+      const filePath = path.join(
+        process.cwd(),
+        "public",
+        "uploads",
+        media.fileName
+      );
 
       try {
         await fs.unlink(filePath);

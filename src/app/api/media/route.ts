@@ -54,7 +54,8 @@ export async function POST(req: NextRequest) {
       data: {
         fileName,
         originalName: file.name,
-        url: `/uploads/${fileName}`,
+        // Served by the uploads route handler (works at runtime in production).
+        url: `/api/uploads/${fileName}`,
         fileType: file.type,
         eventId,
       },

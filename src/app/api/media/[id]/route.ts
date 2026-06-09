@@ -30,12 +30,19 @@ export async function DELETE(req: NextRequest, { params }: Props) {
       return forbidden();
     }
 
-    const filePath = path.join(process.cwd(), "public", media.url);
+    if (media.fileName) {
+      const filePath = path.join(
+        process.cwd(),
+        "public",
+        "uploads",
+        media.fileName
+      );
 
-    try {
-      await fs.unlink(filePath);
-    } catch {
-      console.log("File already missing");
+      try {
+        await fs.unlink(filePath);
+      } catch {
+        console.log("File already missing");
+      }
     }
 
     // Clear dependent rows first to satisfy foreign keys.
