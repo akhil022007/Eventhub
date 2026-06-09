@@ -1,30 +1,30 @@
 import {
-  Search,
-  User,
-  Cloud,
-  Bell,
+  Calendar,
+  Users,
+  Tag,
+  Heart,
 } from "lucide-react";
 
 const features = [
   {
-    icon: Search,
-    title: "Smart Search",
-    desc: "Find photos instantly using AI tags",
+    icon: Calendar,
+    title: "Create Events",
+    desc: "Start an event and you're its organizer",
   },
   {
-    icon: User,
-    title: "Face Recognition",
-    desc: "Discover your photos automatically",
+    icon: Users,
+    title: "Invite & Roles",
+    desc: "Share a link to add viewers; promote them to uploaders",
   },
   {
-    icon: Cloud,
-    title: "Cloud Storage",
-    desc: "Store media securely at scale",
+    icon: Tag,
+    title: "Upload & Tag",
+    desc: "Upload photos and videos and organize them with tags",
   },
   {
-    icon: Bell,
-    title: "Notifications",
-    desc: "Real-time updates and engagement",
+    icon: Heart,
+    title: "Like & Comment",
+    desc: "React and comment on the media everyone shares",
   },
 ];
 

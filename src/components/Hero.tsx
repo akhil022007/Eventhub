@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Hero() {
   return (
     <section
@@ -31,12 +33,13 @@ export default function Hero() {
         max-w-3xl
         "
       >
-        AI-powered platform for organizing,
-        sharing and discovering event media.
+        Create events, invite your people, and upload,
+        tag, and share photos and videos — all in one place.
       </p>
 
       <div className="flex gap-4 mt-8">
-        <button
+        <Link
+          href="/register"
           className="
           bg-white
           text-black
@@ -47,41 +50,7 @@ export default function Hero() {
           "
         >
           Get Started
-        </button>
-
-        <button
-          className="
-          border
-          border-gray-700
-          px-6
-          py-3
-          rounded-xl
-          "
-        >
-          Live Demo
-        </button>
-      </div>
-
-      <div
-        className="
-        mt-16
-        w-full
-        max-w-5xl
-        h-[350px]
-        rounded-3xl
-        border
-        border-gray-800
-        bg-gradient-to-br
-        from-blue-950
-        via-black
-        to-gray-950
-        flex
-        items-center
-        justify-center
-        text-gray-500
-        "
-      >
-        Dashboard Preview Coming Soon
+        </Link>
       </div>
     </section>
   );

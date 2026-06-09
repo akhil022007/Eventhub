@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -99,6 +100,13 @@ export default function RegisterPage() {
               : "Register"}
           </Button>
         </div>
+
+        <p className="text-sm text-muted-foreground mt-6 text-center">
+          Already a user?{" "}
+          <Link href="/login" className="text-primary hover:underline">
+            Log in
+          </Link>
+        </p>
       </Card>
     </div>
   );
